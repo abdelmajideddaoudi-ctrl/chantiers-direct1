@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chantiers Direct – Des chantiers qualifiés pour les professionnels</title>
+  <meta name="description" content="Chantiers Direct met à disposition des artisans et entreprises des chantiers et travaux qualifiés près de chez eux. Abonnement mensuel ou accès au chantier à l'unité.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f26b1d'/%3E%3Cpath d='M14 44h36v6H14zM20 22l12-9 12 9v18H20z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a href="#/" class="brand"><span class="logo">
+        <svg viewBox="0 0 64 64" width="34" height="34" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#f26b1d"/><path d="M14 44h36v6H14zM20 22l12-9 12 9v18H20z" fill="#fff"/></svg>
+      </span><span class="brand-name" id="brandName">Chantiers Direct</span></a>
+      <button class="burger" id="burger" aria-label="Menu">☰</button>
+      <nav id="nav" class="nav"></nav>
+    </div>
+  </header>
+  <div id="testBanner" class="test-banner" hidden></div>
+  <main id="app" class="wrap"></main>
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <div>
+        <strong id="footName">Chantiers Direct</strong>
+        <p>La plateforme qui met en relation les professionnels du bâtiment et des services avec des chantiers qualifiés.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#/chantiers">Chantiers</a>
+        <a href="#/tarifs">Tarifs</a>
+        <a href="#/legal/mentions">Mentions légales</a>
+        <a href="#/legal/cgv">CGU / CGV</a>
+        <a href="#/legal/confidentialite">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

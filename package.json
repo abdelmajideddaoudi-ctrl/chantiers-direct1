@@ -1,0 +1,10 @@
+{
+  "name": "chantiers-direct",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Plateforme de mise à disposition de chantiers pour professionnels (abonnement + accès à l'unité).",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
