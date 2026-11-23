@@ -10,6 +10,9 @@ import { stripe, createCheckout, applySession, handleWebhook } from "../../src/s
 import {
   instagramEnabled, buildCaption, hashtagsFor, budgetLabel, saveImage, getImage, getPost, publishPost, markPublished,
 } from "../../src/server/instagram.mjs";
+import {
+  youtubeEnabled, buildTitle, buildDescription, buildTags, getYtPost, saveYtDraft, markYtPublished, uploadVideo,
+} from "../../src/server/youtube.mjs";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
@@ -341,6 +344,50 @@ export default async (req, context) => {
         const imageUrl = `${url.origin}/api/ig/${c.id}.jpg?v=${p.imageAt}`;
         try { return json({ post: await publishPost({ id: c.id, caption, imageUrl }) }); }
         catch (e) { return err(e.message, 502); }
+      }
+
+      // ---------- Agent YouTube ----------
+      if (path === "/admin/youtube" && m === "GET") {
+        const all = (await listJSON("chantier:")).filter((c) => c.status === "ouvert").sort((a, b) => b.createdAt - a.createdAt);
+        const items = await Promise.all(all.map(async (c) => {
+          const v = chantierView(c, { taken: await countUnlocks(c.id), settings });
+          delete v.description;
+          return {
+            chantier: { ...v, budgetLabel: budgetLabel(c.budget) },
+            title: buildTitle(c),
+            description: buildDescription(c, { siteName: settings.siteName, siteUrl: url.origin, placesRestantes: v.placesRestantes }),
+            tags: buildTags(c, settings.siteName),
+            post: await getYtPost(c.id),
+          };
+        }));
+        return json({ items, enabled: youtubeEnabled(), siteName: settings.siteName });
+      }
+
+      if (seg[1] === "youtube" && seg[2] && ["draft", "upload", "manual"].includes(seg[3]) && m === "POST") {
+        const c = await getJSON(`chantier:${seg[2]}`);
+        if (!c) return err("Chantier introuvable.", 404);
+        if (seg[3] === "draft") {
+          // Textes choisis par l'administrateur, utilisés lors de l'envoi de la vidéo
+          const b = await body(req);
+          const title = clean(b.title, 100).replace(/[<>]/g, "") || buildTitle(c);
+          const description = clean(b.description, 5000).replace(/[<>]/g, "");
+          const tags = Array.isArray(b.tags) ? b.tags.map((t) => clean(t, 60).replace(/[<>,]/g, "")).filter(Boolean).slice(0, 40) : buildTags(c, settings.siteName);
+          const privacy = ["public", "unlisted", "private"].includes(b.privacy) ? b.privacy : "public";
+          return json({ post: await saveYtDraft(c.id, { title, description, tags, privacy }) });
+        }
+        if (seg[3] === "manual") return json({ post: await markYtPublished(c.id, { manual: true }) });
+        // upload : corps = la vidéo brute (WebM ou MP4)
+        const d = await getYtPost(c.id);
+        if (!d?.draftAt) return err("Enregistrez d'abord le titre et la description.");
+        if (d.publishedAt && url.searchParams.get("force") !== "1") return err("Ce chantier a déjà été publié sur YouTube.");
+        const mime = (req.headers.get("content-type") || "").split(";")[0].trim();
+        if (!["video/webm", "video/mp4"].includes(mime)) return err("Format vidéo non pris en charge (WebM ou MP4).");
+        const bytes = await req.arrayBuffer();
+        if (!bytes.byteLength) return err("Vidéo vide.");
+        if (bytes.byteLength > 5.5 * 1024 * 1024) return err("Vidéo trop lourde (5,5 Mo max).");
+        try {
+          return json({ post: await uploadVideo({ id: c.id, bytes, mime, title: d.title, description: d.description, tags: d.tags, privacy: d.privacy }) });
+        } catch (e) { return err(e.message, 502); }
       }
 
       if (path === "/admin/stats" && m === "GET") {

@@ -67,3 +67,34 @@ Prérequis : un compte Instagram **professionnel** (Business ou Créateur).
 4. Redéployer. Le bouton « Publier sur Instagram » apparaît. Le visuel est servi publiquement à `/api/ig/ID.jpg` pour qu'Instagram puisse le télécharger.
 
 Le jeton expire au bout de 60 jours : pensez à le renouveler (ou à le rafraîchir via l'API) et à mettre à jour la variable.
+
+## Agent YouTube (Administration > YouTube)
+
+Pour chaque chantier ouvert, l'agent crée un **YouTube Short** :
+
+- **Vidéo** verticale 1080 × 1920 de 12 secondes, animée (étiquette, métier, titre, infos une par une, appel à l'action). Elle est fabriquée directement dans le navigateur (MP4 sur Chrome/Edge récents, WebM sinon), sans logiciel de montage. Pas de son.
+- **Titre** (100 caractères max, avec `#Shorts`), **description** avec liens vers le chantier et le site, **tags** adaptés au métier et à la ville. Tout est modifiable avant l'envoi.
+- **Aucune donnée client** n'est publiée, le budget est arrondi.
+
+Sans configuration : « Créer et télécharger la vidéo » puis « Copier titre + description » pour la mettre en ligne depuis YouTube Studio, puis « Marquer comme publié ».
+
+### Publication en un clic (API YouTube Data v3)
+
+1. Sur console.cloud.google.com : créer un projet, activer **YouTube Data API v3**.
+2. « Écran de consentement OAuth » : type Externe, ajouter votre adresse Google comme utilisateur test.
+3. « Identifiants » > Créer un **ID client OAuth** de type « Application Web », avec `https://developers.google.com/oauthplayground` comme URI de redirection autorisée.
+4. Sur developers.google.com/oauthplayground : roue dentée > « Use your own OAuth credentials » (coller l'ID et le secret), choisir le scope `https://www.googleapis.com/auth/youtube.upload`, autoriser avec le compte de la chaîne, puis « Exchange authorization code for tokens » et copier le **refresh token**.
+5. Dans Netlify, ajouter les variables :
+
+| Variable | Rôle |
+| --- | --- |
+| `YOUTUBE_CLIENT_ID` | ID client OAuth |
+| `YOUTUBE_CLIENT_SECRET` | Secret client OAuth (secret) |
+| `YOUTUBE_REFRESH_TOKEN` | Jeton de rafraîchissement (secret) |
+
+6. Redéployer. Le bouton « Créer et publier sur YouTube » apparaît.
+
+À savoir :
+- Tant que le projet Google n'a pas été **vérifié** par Google (audit de l'API), les vidéos envoyées par l'API restent **privées**. Passez-les en public dans YouTube Studio, ou demandez l'audit (formulaire « YouTube API Services – Audit »).
+- Si l'écran de consentement reste en mode « Test », le refresh token expire au bout de 7 jours. Passez l'application « En production » pour qu'il dure.
+- Quota gratuit : 10 000 unités/jour, un envoi en coûte 1 600, soit environ 6 Shorts par jour.

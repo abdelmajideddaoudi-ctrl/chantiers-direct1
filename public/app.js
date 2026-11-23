@@ -329,7 +329,7 @@
 
   // ---------- Administration ----------
   function adminTabs(active) {
-    const t = [["#/admin", "Tableau de bord"], ["#/admin/chantiers", "Chantiers"], ["#/admin/pros", "Professionnels"], ["#/admin/paiements", "Paiements"], ["#/admin/instagram", "Instagram"], ["#/admin/reglages", "Réglages"]];
+    const t = [["#/admin", "Tableau de bord"], ["#/admin/chantiers", "Chantiers"], ["#/admin/pros", "Professionnels"], ["#/admin/paiements", "Paiements"], ["#/admin/instagram", "Instagram"], ["#/admin/youtube", "YouTube"], ["#/admin/reglages", "Réglages"]];
     return `<h1>Administration</h1><nav class="tabs">${t.map(([h, l]) => `<a href="${h}" class="${h === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   }
   const requireAdmin = () => { if (state.user?.role !== "admin") { location.hash = "#/connexion"; return false; } return true; };
@@ -622,6 +622,194 @@
     });
   }
 
+
+  // ---------- Agent YouTube (Shorts) ----------
+  const SHORT_SECONDS = 12;
+  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+
+  // Dessine l'image n° t (en secondes) du Short vertical 1080 x 1920
+  function drawShortFrame(ctx, c, siteName, t) {
+    const W = 1080, H = 1920, P = 90;
+    const font = (w, px) => `${w} ${px}px Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#0f1f3a"); g.addColorStop(1, "#22406f");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1; ctx.textBaseline = "alphabetic";
+    // Bandes de chantier qui défilent
+    ctx.save(); ctx.translate(W - 300, -80); ctx.rotate(Math.PI / 4);
+    const off = (t * 60) % 92;
+    for (let i = -2; i < 9; i++) { ctx.fillStyle = i % 2 ? "#0f1f3a" : "#f26b1d"; ctx.fillRect(i * 46 - 160 + off, 0, 46, 130); }
+    ctx.restore();
+    // Logo + nom
+    ctx.fillStyle = "#f26b1d"; ctx.beginPath(); ctx.roundRect(P, 150, 96, 96, 20); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillRect(P + 20, 150 + 66, 56, 9);
+    ctx.beginPath(); ctx.moveTo(P + 29, 184); ctx.lineTo(P + 48, 170); ctx.lineTo(P + 67, 184); ctx.lineTo(P + 67, 210); ctx.lineTo(P + 29, 210); ctx.closePath(); ctx.fill();
+    ctx.font = font(800, 46); ctx.textBaseline = "middle"; ctx.fillText(siteName, P + 122, 198); ctx.textBaseline = "alphabetic";
+
+    const slide = (start, dur = 0.6) => { const k = ease((t - start) / dur); return { a: k, dx: (1 - k) * -120 }; };
+    let y = 480;
+    // Étiquette
+    let s1 = slide(0.2);
+    ctx.globalAlpha = s1.a;
+    ctx.font = font(800, 44);
+    const tag = "NOUVEAU CHANTIER"; const tw = ctx.measureText(tag).width;
+    ctx.fillStyle = "#f26b1d"; ctx.beginPath(); ctx.roundRect(P + s1.dx, y - 62, tw + 60, 86, 43); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillText(tag, P + 30 + s1.dx, y - 4);
+    // Métier
+    y += 110; s1 = slide(0.7);
+    ctx.globalAlpha = s1.a; ctx.fillStyle = "#ffb88a"; ctx.font = font(700, 50); ctx.fillText(c.metier || "", P + s1.dx, y);
+    // Titre
+    s1 = slide(1.4, 0.8);
+    ctx.globalAlpha = s1.a; ctx.fillStyle = "#fff"; ctx.font = font(800, 86);
+    y += 30;
+    for (const l of wrapLines(ctx, c.titre, W - 2 * P, 5)) { y += 104; ctx.fillText(l, P + s1.dx, y); }
+    // Infos, une par une
+    y += 120;
+    const info = [["📍", `${c.ville || ""}${c.departement ? ` (${c.departement})` : ""}`]];
+    if (c.budgetLabel) info.push(["💶", `Budget ${c.budgetLabel}`]);
+    if (c.delai) info.push(["⏱️", c.delai]);
+    info.push(["👷", c.placesRestantes > 0 ? `${c.placesRestantes} place${c.placesRestantes > 1 ? "s" : ""} disponible${c.placesRestantes > 1 ? "s" : ""}` : "Complet"]);
+    ctx.font = font(600, 56);
+    info.forEach(([ico, txt], i) => {
+      if (y > H - 420) return;
+      const s = slide(3.2 + i * 0.7);
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = "#fff"; ctx.fillText(ico, P + s.dx, y);
+      ctx.fillStyle = "#dfe6f3"; ctx.fillText(wrapLines(ctx, txt, W - 2 * P - 100, 1)[0] || "", P + 100 + s.dx, y);
+      y += 96;
+    });
+    // Appel à l'action (monte depuis le bas, puis pulse)
+    const k = ease((t - 7) / 0.7);
+    ctx.globalAlpha = 1;
+    const by = H - 300 * k;
+    ctx.fillStyle = "#f26b1d"; ctx.fillRect(0, by, W, 300);
+    if (k > 0) {
+      const pulse = 1 + (t > 8 ? 0.03 * Math.sin((t - 8) * 6) : 0);
+      ctx.save(); ctx.translate(P, by + 130); ctx.scale(pulse, pulse);
+      ctx.fillStyle = "#fff"; ctx.font = font(800, 64); ctx.fillText("Coordonnées du client", 0, 0);
+      ctx.restore();
+      ctx.fillStyle = "#fff"; ctx.font = font(600, 46); ctx.fillText(`sur ${siteName} · lien en description`, P, by + 210);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Enregistre le Short en temps réel (≈ 12 s) avec MediaRecorder
+  async function recordShort(canvas, c, siteName, onProgress) {
+    canvas.width = 1080; canvas.height = 1920;
+    const ctx = canvas.getContext("2d");
+    const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    const mime = types.find((x) => window.MediaRecorder && MediaRecorder.isTypeSupported(x));
+    if (!mime) throw new Error("Votre navigateur ne sait pas enregistrer de vidéo. Utilisez Chrome, Edge ou Firefox récent.");
+    drawShortFrame(ctx, c, siteName, 0);
+    const stream = canvas.captureStream(30);
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
+    const chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    const done = new Promise((res) => (rec.onstop = res));
+    rec.start(250);
+    const t0 = performance.now();
+    await new Promise((res) => {
+      const tick = () => {
+        const t = (performance.now() - t0) / 1000;
+        drawShortFrame(ctx, c, siteName, Math.min(t, SHORT_SECONDS));
+        stream.getVideoTracks()[0]?.requestFrame?.();
+        onProgress?.(Math.min(1, t / SHORT_SECONDS));
+        if (t >= SHORT_SECONDS) return res();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    rec.stop(); await done;
+    stream.getTracks().forEach((tr) => tr.stop());
+    const type = mime.split(";")[0];
+    return new Blob(chunks, { type });
+  }
+
+  async function adminYoutube() {
+    if (!requireAdmin()) return;
+    const { items, enabled, siteName } = await api("/admin/youtube");
+    app.innerHTML = adminTabs("#/admin/youtube") + `
+      ${enabled ? "" : `<div class="notice"><strong>Envoi automatique non configuré.</strong> Vous pouvez déjà créer la vidéo, la télécharger et copier les textes pour la mettre en ligne depuis YouTube Studio. Pour publier en un clic, ajoutez <code>YOUTUBE_CLIENT_ID</code>, <code>YOUTUBE_CLIENT_SECRET</code> et <code>YOUTUBE_REFRESH_TOKEN</code> dans Netlify (voir README).</div>`}
+      <div class="section-title"><h2 style="margin:0">${items.length} chantier(s) ouvert(s)</h2>
+        <span class="muted small">${items.filter((i) => !i.post?.publishedAt).length} à publier · Shorts verticaux de ${SHORT_SECONDS} s</span></div>
+      <div class="ig-list">${items.map((it, i) => {
+        const p = it.post || {};
+        return `
+        <div class="card ig-item yt-item" data-i="${i}">
+          <div><canvas class="yt-canvas"></canvas><div class="yt-progress" hidden><div></div></div></div>
+          <div class="ig-side">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:start">
+              <div><h3 style="margin:0">${esc(it.chantier.titre)}</h3><div class="muted small">${esc(it.chantier.ville)} · ${dateFr(it.chantier.createdAt)}</div></div>
+              ${p.publishedAt ? `<span class="badge green">Publié le ${dateFr(p.publishedAt)}</span>` : `<span class="badge orange">À publier</span>`}
+            </div>
+            <div class="field" style="margin:12px 0 8px"><label>Titre <span class="muted small yt-tcount"></span></label><input class="yt-title" maxlength="100" value="${esc(p.title || it.title)}"></div>
+            <div class="field" style="margin-bottom:8px"><label>Description</label><textarea class="yt-desc ig-caption" maxlength="5000">${esc(p.description || it.description)}</textarea></div>
+            <div class="grid2">
+              <div class="field"><label>Tags (séparés par des virgules)</label><input class="yt-tags" value="${esc((p.tags || it.tags).join(", "))}"></div>
+              <div class="field"><label>Visibilité</label><select class="yt-privacy">${[["public", "Publique"], ["unlisted", "Non répertoriée"], ["private", "Privée"]].map(([v, l]) => `<option value="${v}" ${(p.privacy || "public") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+            </div>
+            <div class="row-actions">
+              ${enabled ? `<button class="btn sm" data-act="publish">${p.publishedAt ? "Republier" : "Créer et publier sur YouTube"}</button>` : ""}
+              <button class="btn secondary sm" data-act="download">Créer et télécharger la vidéo</button>
+              <button class="btn secondary sm" data-act="copy">Copier titre + description</button>
+              ${!p.publishedAt ? `<button class="btn secondary sm" data-act="manual">Marquer comme publié</button>` : ""}
+              <button class="btn secondary sm" data-act="reset">Textes par défaut</button>
+              ${p.url ? `<a class="btn secondary sm" href="${esc(p.url)}" target="_blank" rel="noopener">Voir le Short</a>` : ""}
+            </div>
+          </div>
+        </div>`; }).join("") || `<div class="card empty">Aucun chantier ouvert à publier.</div>`}</div>`;
+
+    let busy = false;
+    app.querySelectorAll(".yt-item").forEach((el) => {
+      const it = items[Number(el.dataset.i)];
+      const canvas = el.querySelector("canvas");
+      const title = el.querySelector(".yt-title"), desc = el.querySelector(".yt-desc"), tags = el.querySelector(".yt-tags"), privacy = el.querySelector(".yt-privacy");
+      const bar = el.querySelector(".yt-progress");
+      const tcount = () => (el.querySelector(".yt-tcount").textContent = `(${title.value.length}/100)`);
+      title.addEventListener("input", tcount); tcount();
+      const preview = () => { canvas.width = 1080; canvas.height = 1920; drawShortFrame(canvas.getContext("2d"), it.chantier, siteName, SHORT_SECONDS); };
+      preview(); document.fonts?.ready.then(() => !busy && preview());
+      const record = async () => {
+        bar.hidden = false;
+        try { return await recordShort(canvas, it.chantier, siteName, (k) => (bar.firstElementChild.style.width = Math.round(k * 100) + "%")); }
+        finally { bar.hidden = true; }
+      };
+      el.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", async () => {
+        const act = b.dataset.act;
+        if ((act === "publish" || act === "download") && busy) return toast("Une vidéo est déjà en cours de création, patientez.", true);
+        b.disabled = true;
+        try {
+          if (act === "copy") { await navigator.clipboard.writeText(`${title.value}\n\n${desc.value}\n\nTags : ${tags.value}`); toast("Textes copiés."); }
+          else if (act === "reset") { title.value = it.title; desc.value = it.description; tags.value = it.tags.join(", "); tcount(); }
+          else if (act === "manual") { await api(`/admin/youtube/${it.chantier.id}/manual`, { method: "POST", body: {} }); toast("Marqué comme publié."); adminYoutube(); }
+          else if (act === "download") {
+            busy = true; toast(`Création de la vidéo (${SHORT_SECONDS} s)…`);
+            const blob = await record();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `chantier-${it.chantier.id}.${blob.type.includes("mp4") ? "mp4" : "webm"}`; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+          } else if (act === "publish") {
+            if (it.post?.publishedAt && !confirm("Ce chantier a déjà été publié sur YouTube. Le republier ?")) return;
+            busy = true;
+            await api(`/admin/youtube/${it.chantier.id}/draft`, { method: "POST", body: {
+              title: title.value, description: desc.value, privacy: privacy.value,
+              tags: tags.value.split(",").map((x) => x.trim()).filter(Boolean) } });
+            toast(`Création de la vidéo (${SHORT_SECONDS} s)…`);
+            const blob = await record();
+            toast("Envoi sur YouTube…");
+            const r = await fetch(`/api/admin/youtube/${it.chantier.id}/upload${it.post?.publishedAt ? "?force=1" : ""}`, {
+              method: "POST", headers: { "content-type": blob.type }, body: blob, credentials: "same-origin" });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || "Échec de l'envoi.");
+            toast("Short publié sur YouTube !"); adminYoutube();
+          }
+        } catch (e) { toast(e.message, true); }
+        finally { b.disabled = false; if (act === "publish" || act === "download") { busy = false; preview(); } }
+      }));
+    });
+  }
+
   // ---------- Pages légales ----------
   function pageLegal(which) {
     const n = esc(state.config.siteName);
@@ -688,6 +876,7 @@
           if (seg[1] === "paiements") return await adminPayments();
           if (seg[1] === "reglages") return await adminSettings();
           if (seg[1] === "instagram") return await adminInstagram();
+          if (seg[1] === "youtube") return await adminYoutube();
         // fallthrough
         default: app.innerHTML = `<div class="card narrow empty"><h2>Page introuvable</h2><a class="btn" href="#/">Retour à l'accueil</a></div>`;
       }

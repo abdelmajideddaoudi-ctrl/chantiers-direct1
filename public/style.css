@@ -157,3 +157,8 @@ tr:last-child td{border-bottom:0}
 .ig-canvas{width:100%;height:auto;aspect-ratio:4/5;border-radius:12px;display:block;background:#0f1f3a}
 .ig-caption{min-height:220px;font-size:14px}
 @media (max-width:760px){.ig-item{grid-template-columns:1fr}.ig-canvas{max-width:360px}}
+.yt-canvas{width:100%;height:auto;aspect-ratio:9/16;border-radius:12px;display:block;background:#0f1f3a}
+.yt-item{grid-template-columns:240px 1fr}
+.yt-progress{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+.yt-progress div{height:100%;width:0;background:var(--orange)}
+@media (max-width:760px){.yt-item{grid-template-columns:1fr}.yt-canvas{max-width:300px}}
